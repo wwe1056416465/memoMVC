@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+  <title>Document</title>
+  <link rel="stylesheet" href="./css/index.css">
+</head>
+<body>
+  <section class="todoapp">
+    <header class="header">
+      <h1>备忘录</h1>
+      <input
+      autofocus="autofocus"
+      autocomplete="off"
+      placeholder="待办事项! 例如:今天学习开始学习Vue"
+      class="new-todo"
+      @keyup.enter='inserttodo'
+      v-model.trim="todo"
+      />
+    </header>
+    <section class="main">
+      <input type="checkbox" class="toggle-all" v-model="isAll"  @change="setisAll"/>
+      <ul class="todo-list">
+        <!-- 循环的数组要根据当前点击的状态决定 ,所以不能写死,同步计算属性中的currentList -->
+        <!-- 根据当前项的completed字段的值来决定是否要添加 completed类名(显示隐藏选中状态的类)-->
+        <!-- 给li绑定双击事件 调用edit() 并且把当前这一项当做参数传递过去 -->
+        <!-- 如果当前这一项等于数据中editTodo中保存的对象,那么编辑的就是当前这一项 就给这个li加一个editing类名 (显示隐藏编辑框的类)-->
+        <li class="todo" :class="{'completed':item.completed,editing:item==editTodo}" v-for="(item,index) in currentList" @dblclick="edit(item)">
+          <div class="view">
+            <!-- 选中状态的勾选状态与每项的completed字段同步,双向绑定 -->
+            <input type="checkbox" class="toggle" v-model="item.completed" />
+            <!-- 插值     给x绑定点击事件,删除当前点击的这一项,通过索引来确定删除当前点击的这一项 -->
+            <label>{{item.todo}}</label> <button class="destroy" @click="deleteOne(index)"></button>
+          </div>
+          <!-- 给编辑框双向绑定每项的todt字段      绑定失焦点和鼠标松开事件 把editTodo的值改回原来的undefined-->
+          <input type="text" class="edit" v-model="item.todo"  @blur="editTodo=''" @keyup.enter="editTodo=''" />
+        </li>
+      </ul>
+    </section>
+    <footer class="footer">
+      <span class="todo-count"><strong>{{uncompletedNum}}</strong> {{uncompletedNum>1?'items':'item'}} left </span>
+      <ul class="filters">
+        <li><a href="#/all" :class="{selected:status=='All'}" @click="status='All'">All</a></li>
+        <li><a href="#/active" :class="{selected:status=='Active'}"  @click="status='Active'">Active</a></li>
+        <li><a href="#/completed" :class="{selected:status=='Completed'}"  @click="status='Completed'">Completed</a></li>
+      </ul>
+      <button class="clear-completed" @click="clearList">Clear completed</button>
+    </footer>
+  </section>
+  <footer class="info">
+    <p>双击进入编辑状态</p>
+    <p>感谢 <a href="http://evanyou.me">Evan You</a></p>
+    <p>感谢 <a href="http://todomvc.com">TodoMVC</a></p>
+    <p> <a href="https://wwe1056416465.github.io/">关于我</a></p>
+  </footer>
+</body>
+</html>
+<script src="./lib/vue.js"></script>
+<script>
+  let vm=new Vue({
+    el:'.todoapp',
+    data:{
+
+      editTodo:'',//保存当前编辑的对象
+      status:'All', // 选择的分类状态 根据状态返回对应的数组
+      isAll:false,// 双向邦定全选按钮的字段,同步checkbox的选中状态
+      todo:'', // 双向邦定输入待办事件的字段,同步input输入的待办事件文本  
+      toList:[], // toList 保存所有待办的事件
+    },
+    // 方法
+    methods:{ 
+      // 编辑方法
+      edit(item){
+      // 方法再调用的时候吧当前点击的对象当中参数传递过来保存到editTodo中
+      this.editTodo=item
+    },
+      // 清空所有待办事项
+      clearList(){
+        // 筛选出未完成的待办事项
+        let newList=  this.toList.filter(item=>{
+          if(item.completed==false){
+            return item
+          }
+        });
+        // 重新赋值给数组
+        this.toList=newList
+      },
+      // 控制全选反选
+      setisAll(){    
+        this.toList.forEach(item=>{
+          item.completed=this.isAll
+        })
+      },
+      // 新增代待办事件方法
+      inserttodo(){
+        //当调用这个新增待办方法时就把当前需要待办的事件添加到所有待办事件数组去
+        this.toList.unshift({todo:this.todo,completed:false})
+        // 清空当前待办事件的内容,准备保存下次待办事件
+        this.todo='';
+      },
+      // 删除一条数据的方法
+      deleteOne(index){
+        this.toList.splice(index,1)
+      }
+    },
+    // 侦听器
+    watch:{
+      // 监听数组吧值变化
+      toList: {
+        handler: function (val, oldVal) { 
+          let count=0;
+          this.toList.some(item=>{
+            if(item.completed==true){
+              count++;
+            }
+          })
+          this.isAll=this.toList.length==count
+        },
+        // 开启深度监听 监听内层元素的值改变
+        deep: true
+      },
+    },
+    // 计算属性
+    computed:{
+      //计算出没有完成事项的数量
+      uncompletedNum(){
+        let count=0;//保存未完成的事项的数量
+        this.toList.some(item=>{
+          if(item.completed==false){
+            count++;
+          }
+        })
+        return count;
+      },
+      // 计算出点击不同的状态时需要遍历的数组
+      currentList(){
+        // 获取到当前的状态 根据状态返回对应的数组
+        if(this.status=='All'){
+          // status==All时 返回原数组
+          return this.toList;
+        }else if(this.status=='Active'){
+         let newList= this.toList.filter(item=>{
+          if(item.completed==false){
+             // 筛选出未完成的待办事项返回一个新的数组
+             return item
+           }
+         });
+          // 返回一个未完成事项的数组
+          return newList;
+        }else{
+          let newList= this.toList.filter(item=>{
+            if(item.completed==true){
+             // 筛选出已完成的待办事项返回一个新的数组
+             return item
+           }
+         });
+        // 返回一个完成事项的数组
+        return newList;
+      }
+    }
+  },
+    // vue实例数据和方法初始化完成后可以拿到data和methods时把本地存储的数据取出来保存到vue实例中的数组中去
+    created(){
+      this.toList= JSON.parse( window.localStorage.getItem('todo'))||[]
+    }
+
+  })
+// 浏览器关闭之前把Vue实例中的数组保存到本地存储中去
+window.onbeforeunload=function  () {
+  window.localStorage.setItem('todo',JSON.stringify(vm.toList))
+}
+</script>
+
+
